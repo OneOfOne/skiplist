@@ -5,10 +5,10 @@ type CompareFn func(a, b interface{}) int
 
 // StringCompareFn is a helper function to compare string keys.
 func StringCompareFn(a, b interface{}) int {
-	as, _ := a.(string)
+	as, aok := a.(string)
 	bs, _ := b.(string)
 	switch {
-	case as < bs:
+	case as < bs || !aok:
 		return -1
 	case as == bs:
 		return 0
@@ -19,10 +19,10 @@ func StringCompareFn(a, b interface{}) int {
 
 // IntCompareFn is a helper function to compare Int keys.
 func IntCompareFn(a, b interface{}) int {
-	as, _ := a.(int)
+	as, aok := a.(int)
 	bs, _ := b.(int)
 	switch {
-	case as < bs:
+	case as < bs || !aok:
 		return -1
 	case as == bs:
 		return 0
@@ -33,10 +33,10 @@ func IntCompareFn(a, b interface{}) int {
 
 // UintCompareFn is a helper function to compare uint keys.
 func UintCompareFn(a, b interface{}) int {
-	as, _ := a.(uint)
+	as, aok := a.(uint)
 	bs, _ := b.(uint)
 	switch {
-	case as < bs:
+	case as < bs || !aok:
 		return -1
 	case as == bs:
 		return 0

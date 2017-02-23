@@ -52,33 +52,42 @@ func (sl *List) Level() int { return sl.level }
 func (sl *List) Len() int { return sl.len }
 
 func (sl *List) findAndUpdate(k interface{}) (n *node) {
-	var checked *node
 	n = sl.head
 	for i := sl.level - 1; i >= 0; i-- {
-		for next := n.next[i]; next != nil && next != checked && sl.cmpFn(next.k, k) < 0; next = n.next[i] {
+		for next := n.next[i]; next != nil && sl.cmpFn(next.k, k) < 0; next = n.next[i] {
 			n = next
 		}
-		checked = n.next[i]
 		sl.update[i] = n
 	}
-	return
+	return n.next[0]
+}
+
+func (sl *List) find(k interface{}) (n *node) {
+	n = sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for next := n.next[i]; next != nil && sl.cmpFn(next.k, k) < 0; next = n.next[i] {
+			n = next
+		}
+	}
+	return n.next[0]
 }
 
 // Set assigns a key to a value, returns true if the key didn't already exist.
 func (sl *List) Set(k, v interface{}) (added bool) {
-	if n := sl.findAndUpdate(k).next[0]; n != nil && sl.cmpFn(k, n.k) == 0 {
+	n := sl.findAndUpdate(k)
+
+	if n != nil && sl.cmpFn(k, n.k) == 0 {
 		n.v = v
 		return
 	}
 
-	nlevel := sl.newLevel()
-	n := &node{
+	n = &node{
 		k:    k,
 		v:    v,
-		next: make([]*node, nlevel),
+		next: make([]*node, sl.newLevel()),
 	}
 
-	for i := 0; i < nlevel; i++ {
+	for i := range n.next {
 		if up := sl.update[i]; up != nil {
 			tmp := up.next[i]
 			n.next[i] = tmp
@@ -94,21 +103,20 @@ func (sl *List) Set(k, v interface{}) (added bool) {
 
 // Get returns the value if found, otherwise nil.
 func (sl *List) Get(k interface{}) interface{} {
-	for n, i := sl.head, sl.level-1; i >= 0; i-- {
-	L:
-		for next := n.next[i]; next != nil; next = n.next[i] {
-			switch sl.cmpFn(next.k, k) {
-			case -1:
-				n = next
-			case 0:
-				return next.v
-			default:
-				break L
-			}
-		}
+	n := sl.find(k)
+	if sl.cmpFn(n.k, k) == 0 {
+		return n.v
 	}
-
 	return nil
+}
+
+// IteratorAt returns an iterator starting at the specific key.
+// Example:
+//	for it := sl.IteratorAt(0); it.HasMore(); it.Next() {
+//		key, value := it.Key(), it.Value()
+//	}
+func (sl *List) IteratorAt(k interface{}) *Iterator {
+	return &Iterator{sl.find(k)}
 }
 
 // ForEach provides an easy way to loop over the list.
@@ -129,8 +137,34 @@ func (sl *List) newLevel() (nlevel int) {
 	}
 
 	if nlevel > sl.level {
+		for i := sl.level; i < nlevel; i++ {
+			sl.update[i] = sl.head
+		}
 		sl.level = nlevel
 	}
 
 	return nlevel
 }
+
+// Iterator represent a forward-only iterator.
+// TODO: support backwards operations.
+type Iterator struct {
+	n *node
+}
+
+// HasMore returns true if there are more items in the list.
+func (it *Iterator) HasMore() bool {
+	return it.n != nil
+}
+
+// Next moves the iterator to the next item and returns true if there are more items in the list.
+func (it *Iterator) Next() bool {
+	it.n = it.n.next[0]
+	return it.n != nil
+}
+
+// Key is the current iterator key.
+func (it *Iterator) Key() interface{} { return it.n.k }
+
+// Value is the current iterator value.
+func (it *Iterator) Value() interface{} { return it.n.v }
