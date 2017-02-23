@@ -2,7 +2,7 @@ package skiplist
 
 import "testing"
 
-const N = 10
+const N = 1e6
 
 func TestSkipList(t *testing.T) {
 	sl := NewCustom(32, 0.25, IntCompareFn, 42)
