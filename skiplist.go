@@ -18,7 +18,7 @@ type node struct {
 type List struct {
 	head   *node
 	rnd    *rand.Rand
-	lessFn LessFn
+	cmpFn  CompareFn
 	update []*node // update buffer
 	prob   float64
 
@@ -26,17 +26,17 @@ type List struct {
 	level int
 }
 
-// New is an alias for NewCustom(maxlevel, DefaultProbability, lessFn, time.Now().Unix()).
-func New(maxlevel int, lessFn LessFn) *List {
-	return NewCustom(maxlevel, DefaultProbability, lessFn, time.Now().Unix())
+// New is an alias for NewCustom(maxlevel, DefaultProbability, cmpFn, time.Now().Unix()).
+func New(maxlevel int, cmpFn CompareFn) *List {
+	return NewCustom(maxlevel, DefaultProbability, cmpFn, time.Now().Unix())
 }
 
 // NewCustom returns a new skiplist with the specified max level and random seed.
-func NewCustom(maxlevel int, prob float64, lessFn LessFn, seed int64) *List {
+func NewCustom(maxlevel int, prob float64, cmpFn CompareFn, seed int64) *List {
 	return &List{
 		head:   &node{next: make([]*node, maxlevel)},
 		rnd:    rand.New(rand.NewSource(seed)),
-		lessFn: lessFn,
+		cmpFn:  cmpFn,
 		update: make([]*node, maxlevel),
 		prob:   prob,
 	}
@@ -52,11 +52,13 @@ func (sl *List) Level() int { return sl.level }
 func (sl *List) Len() int { return sl.len }
 
 func (sl *List) findAndUpdate(k interface{}) (n *node) {
+	var checked *node
 	n = sl.head
 	for i := sl.level - 1; i >= 0; i-- {
-		for next := n.next[i]; next != nil && sl.lessFn(next.k, k); next = n.next[i] {
+		for next := n.next[i]; next != nil && next != checked && sl.cmpFn(next.k, k) < 0; next = n.next[i] {
 			n = next
 		}
+		checked = n.next[i]
 		sl.update[i] = n
 	}
 	return
@@ -64,7 +66,7 @@ func (sl *List) findAndUpdate(k interface{}) (n *node) {
 
 // Set assigns a key to a value, returns true if the key didn't already exist.
 func (sl *List) Set(k, v interface{}) (added bool) {
-	if n := sl.findAndUpdate(k).next[0]; n != nil && !sl.lessFn(k, n.k) {
+	if n := sl.findAndUpdate(k).next[0]; n != nil && sl.cmpFn(k, n.k) == 0 {
 		n.v = v
 		return
 	}
@@ -81,8 +83,8 @@ func (sl *List) Set(k, v interface{}) (added bool) {
 			tmp := up.next[i]
 			n.next[i] = tmp
 			up.next[i] = n
+			sl.update[i] = nil
 		}
-		sl.update[i] = nil
 	}
 
 	sl.len++
@@ -90,36 +92,22 @@ func (sl *List) Set(k, v interface{}) (added bool) {
 	return true
 }
 
-// At returns a key/value by index.
-func (sl *List) At(idx int) (interface{}, interface{}, bool) {
-	n := sl.head
-	for i := 0; i < sl.level; i++ {
-		for next := n.next[i]; next != nil; next = n.next[i] {
-			n = next
-			if idx--; idx == 0 {
-				return n.k, n.v, true
-			}
-		}
-	}
-	return nil, nil, false
-}
-
 // Get returns the value if found, otherwise nil.
 func (sl *List) Get(k interface{}) interface{} {
-	n := sl.head
-	for i := sl.level - 1; i >= 0; i-- {
+	for n, i := sl.head, sl.level-1; i >= 0; i-- {
+	L:
 		for next := n.next[i]; next != nil; next = n.next[i] {
-			if sl.lessFn(next.k, k) {
+			switch sl.cmpFn(next.k, k) {
+			case -1:
 				n = next
-			} else {
-				break
+			case 0:
+				return next.v
+			default:
+				break L
 			}
 		}
 	}
 
-	if n = n.next[0]; n != nil && !sl.lessFn(k, n.k) {
-		return n.v
-	}
 	return nil
 }
 
