@@ -49,8 +49,8 @@ func (sl *List) Level() int { return sl.level }
 // Len returns the length of the list.
 func (sl *List) Len() int { return sl.len }
 
-func (sl *List) findAndUpdate(k string) (n *node) {
-	n = sl.head
+func (sl *List) findAndUpdate(k string) *node {
+	n := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for next := n.next[i]; next != nil && next.k < k; next = n.next[i] {
 			n = next
@@ -60,8 +60,8 @@ func (sl *List) findAndUpdate(k string) (n *node) {
 	return n.next[0]
 }
 
-func (sl *List) find(k string) (n *node) {
-	n = sl.head
+func (sl *List) find(k string) *node {
+	n := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for next := n.next[i]; next != nil && next.k < k; next = n.next[i] {
 			n = next
@@ -101,8 +101,7 @@ func (sl *List) Set(k string, v interface{}) (added bool) {
 
 // Get returns the value if found, otherwise nil.
 func (sl *List) Get(k string) interface{} {
-	n := sl.find(k)
-	if n.k == k {
+	if n := sl.find(k); n.k == k {
 		return n.v
 	}
 	return nil
@@ -122,7 +121,7 @@ func (sl *List) ForEach(fn func(k string, v interface{}) (breakNow bool)) bool {
 func (sl *List) newLevel() (nlevel int) {
 	mh := sl.MaxLevel()
 	nlevel = 1
-	for ; nlevel <= mh && sl.rnd.Float64() < sl.prob; nlevel++ {
+	for ; nlevel < mh && sl.rnd.Float64() < sl.prob; nlevel++ {
 	}
 
 	if nlevel > sl.level {
@@ -131,7 +130,6 @@ func (sl *List) newLevel() (nlevel int) {
 		}
 		sl.level = nlevel
 	}
-
 	return nlevel
 }
 
@@ -162,7 +160,7 @@ func (it *Iterator) Next() bool {
 }
 
 // Key is the current iterator key.
-func (it *Iterator) Key() interface{} { return it.n.k }
+func (it *Iterator) Key() string { return it.n.k }
 
 // Value is the current iterator value.
 func (it *Iterator) Value() interface{} { return it.n.v }
