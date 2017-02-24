@@ -1,6 +1,7 @@
 package skiplist
 
 import (
+	"math"
 	"math/rand"
 	"time"
 )
@@ -40,14 +41,17 @@ func NewCustom(maxlevel int, prob float64, seed int64) *List {
 	}
 }
 
-// MaxLevel returns the list's max level
+// MaxLevel returns the list's max level.
 func (sl *List) MaxLevel() int { return cap(sl.update) }
 
-// Level returns the current level
+// Level returns the current level.
 func (sl *List) Level() int { return sl.level }
 
 // Len returns the length of the list.
 func (sl *List) Len() int { return sl.len }
+
+// Cap returns the maximum number of elements the list can hold.
+func (sl *List) Cap() int { return int(math.Pow(2, float64(sl.MaxLevel()))) }
 
 func (sl *List) findAndUpdate(k string) *node {
 	n := sl.head
@@ -142,25 +146,3 @@ func (sl *List) IteratorAt(k string) *Iterator {
 	return &Iterator{sl.find(k)}
 }
 
-// Iterator represent a forward-only iterator.
-// TODO: support backwards operations.
-type Iterator struct {
-	n *node
-}
-
-// HasMore returns true if there are more items in the list.
-func (it *Iterator) HasMore() bool {
-	return it.n != nil
-}
-
-// Next moves the iterator to the next item and returns true if there are more items in the list.
-func (it *Iterator) Next() bool {
-	it.n = it.n.next[0]
-	return it.n != nil
-}
-
-// Key is the current iterator key.
-func (it *Iterator) Key() string { return it.n.k }
-
-// Value is the current iterator value.
-func (it *Iterator) Value() interface{} { return it.n.v }
